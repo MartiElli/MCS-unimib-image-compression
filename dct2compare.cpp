@@ -20,18 +20,24 @@ Eigen::VectorXd DCT1(Eigen::VectorXd f){
 
         double alpha_k;
         if(k == 0){
-            alpha_k = 1/sqrt(N);
+            alpha_k = 1/sqrt((double)N);
         }
         else{
-            alpha_k = sqrt(2/N);
+            alpha_k = sqrt(2/(double)N);
         }
 
         for(unsigned int j = 0; j < N; ++j){
+            D(k, j) = alpha_k * cos(k * M_PI * ((2 * (double)j + 1) / (2 * (double)N)));
 
-            D(k, j) = alpha_k * std::cos(k * M_PI * ((2 * j + 1) / (2 * N)));
         }
+
     }
 
+    // stampe di test
+    std::cout << "---------------" << std::endl;
+    std::cout << "vettore da trasformare: " << std::endl << f;
+    std::cout << "Matrice D: " << std::endl << D << std::endl;
+    std::cout << "Vettore trasformato con DCT1:" << std::endl << D * f << std::endl;
     return D * f;   // restituisco il vettore trasformato
 }
 
@@ -50,10 +56,12 @@ Eigen::MatrixXd DCT2(Eigen::MatrixXd& f){
 
     // in pratica è DCT1 applicata alle righe e poi alle colonne
 
+    std::cout << "DCT1 SULLE RIGHE" << std::endl;   // stampa di test
     for(unsigned int i = 0; i < c.rows(); ++i){    // loop righe
         c.row(i) = DCT1(c.row(i));
     }
 
+    std::cout << "DCT1 SULLE COLONNE" << std::endl;   // stampa di test
     for(unsigned int j = 0; j < c.cols(); ++j){    // loop colonne
         c.col(j) = DCT1(c.col(j));
     }
@@ -64,9 +72,9 @@ Eigen::MatrixXd DCT2(Eigen::MatrixXd& f){
 // test per verificare che viene effettivamente restituita da DCT2 una matrice modificata
 void computationTest(){
 
-    Eigen::MatrixXd m(3, 3);
-    for(unsigned int i = 0; i < 3; ++i){
-        for(unsigned int j = 0; j < 3; ++j){
+    Eigen::MatrixXd m(5, 5);
+    for(unsigned int i = 0; i < m.rows(); ++i){
+        for(unsigned int j = 0; j < m.cols(); ++j){
             if(i == j){
                 m(i, j) = 3;
             }
