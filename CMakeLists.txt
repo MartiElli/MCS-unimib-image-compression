@@ -1,24 +1,28 @@
 cmake_minimum_required(VERSION 3.14)
 
-# nome progetto versione esclusivamente C++
-project(MCS-Iterative-Solvers VERSION 1.0 LANGUAGES CXX)
+project(MCS-image-compression VERSION 1.0 LANGUAGES CXX)
 
-# abilita export dei comandi di compilazione per strumenti esterni (es. clangd)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# C++17 standard e raise error se non supportato
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
 
-# se non specificato il build type, builda in release
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# cerca Eigen >= 3.3 raise error se non trovato
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_library(FFTW3_LIB fftw3 REQUIRED)
 
-
+# parte 1: benchmark DCT2 custom vs FFTW
 add_executable(DCTComparison dct2compare.cpp)
-target_link_libraries(DCTComparison PUBLIC Eigen3::Eigen)
-target_link_directories(DCTComparison PRIVATE /usr/lib/x86_64-linux-gnu)    # trovare un modo migliore per includere fftw
+target_link_libraries(DCTComparison PRIVATE Eigen3::Eigen ${FFTW3_LIB})
+
+# parte 2: compressione immagini con GUI
+add_executable(ImageCompression
+    src/main.cpp
+    src/mainwindow.cpp
+)
+target_include_directories(ImageCompression PRIVATE include)
+target_link_libraries(ImageCompression PRIVATE Qt6::Widgets Eigen3::Eigen ${FFTW3_LIB})
