@@ -5,6 +5,7 @@ project(MCS-image-compression VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Qt MOC code x slot/signals
 set(CMAKE_AUTOMOC ON)
 
@@ -26,6 +27,7 @@ add_executable(ImageCompression
     src/mainwindow.cpp
     include/mainwindow.h
 )
+
 # ese 2 punta a include x mainwindow.h
 target_include_directories(ImageCompression PRIVATE include)
 target_link_libraries(ImageCompression PRIVATE Qt6::Widgets Eigen3::Eigen ${FFTW3_LIB})
