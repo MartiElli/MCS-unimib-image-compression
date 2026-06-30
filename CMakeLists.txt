@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # nome progetto versione esclusivamente C++
-project(MCS-Iterative-Solvers VERSION 1.0 LANGUAGES CXX)
+project(DCT VERSION 1.0 LANGUAGES CXX)
 
 # abilita export dei comandi di compilazione per strumenti esterni (es. clangd)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -21,4 +21,4 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 add_executable(DCTComparison dct2compare.cpp)
 target_link_libraries(DCTComparison PUBLIC Eigen3::Eigen)
-target_link_directories(DCTComparison PRIVATE /usr/lib/x86_64-linux-gnu)    # trovare un modo migliore per includere fftw
+target_link_libraries(DCTComparison PRIVATE fftw3 m)
