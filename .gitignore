@@ -71,4 +71,5 @@ Testing/
 # VSCode config
 .vscode/
 
-dati/
+# bmps folder
+immagini/
