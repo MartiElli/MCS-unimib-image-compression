@@ -142,7 +142,7 @@ int main(){
 
     std::vector<Misura> results;
     
-    // Testa per N = 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, ...
+    // Testa per N = 2, 4, 8, 16, 32, 64, 128, 256, 512 ...
     for (int N = 2; N <= 512; N *= 2) {
         // Crea una matrice N×N con dati random
         Eigen::MatrixXd mat(N, N); 
@@ -157,10 +157,29 @@ int main(){
         auto end = std::chrono::high_resolution_clock::now();
         double customDCT2_time = std::chrono::duration<double, std::milli>(end - start).count();
 
+        // Setup FFTW
+        double* in = fftw_alloc_real(N * N);
+        double* out = fftw_alloc_real(N * N);
+    
+        // Copia i dati da Eigen a FFTW
+        for (unsigned int i = 0; i < N; i++) {
+            for (unsigned int j = 0; j < N; j++) {
+                in[i * N + j] = mat(i, j);
+            }
+        }
+
+        // Crea il piano FFTW (con FFTW_MEASURE: stabilisce che FFTW seleziona l'algoritmo migliore)
+        fftw_plan p = fftw_plan_r2r_2d(N, N, in, out, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+
         start = std::chrono::high_resolution_clock::now();
-        // istanziare DCT2 di FFTW
+        fftw_execute(p);
         end = std::chrono::high_resolution_clock::now();
         double fftw_time = std::chrono::duration<double, std::milli>(end - start).count();
+
+        // deallocazione
+        fftw_destroy_plan(p);
+        fftw_free(in);
+        fftw_free(out);
 
         results.push_back({N, customDCT2_time, fftw_time});
         
