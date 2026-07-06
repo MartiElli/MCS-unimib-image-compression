@@ -8,7 +8,6 @@
 #include <QImage>      // immagine come griglia di pixel in memoria --> rw su pixels
                        // x visualizzarla convertita in QPixmap e messa in QLabel
 #include <QPainter>
-#include <fftw3.h>
 
 class MainWindow : public QMainWindow {
     // macro x qualsiasi classe con slot/signals

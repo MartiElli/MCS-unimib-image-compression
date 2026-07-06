@@ -4,6 +4,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QScrollArea>
+#include <fftw3.h>  // libreria per DCT2 e IDCT2
+#include <algorithm>    // funzioni min e max tra due numeri
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Compressione DCT");                              // titolo MainWindow
@@ -112,17 +114,6 @@ void MainWindow::loadImage() {
 }
 
 
-void extractPixels(const QImage& block, int blockSize, double* matrix){
-
-    for (int y = 0; y < block.height(); y++) {
-        for (int x = 0; x < block.width(); x++) {
-            unsigned char pixel = block.pixelIndex(x, y);
-            matrix[y * blockSize + x] = (double)pixel;
-        }
-    }
-}
-
-
 // comprime immagine
 void MainWindow::compress() {
     // guardia presenza immagine
@@ -142,6 +133,7 @@ void MainWindow::compress() {
 
     // creazione array contenente i blocchi in cui l'immagine viene suddivisa
     QVector<QImage> blocks(blocksX * blocksY);
+    QVector<QImage> convertedBlocks(blocksX * blocksY);
     // partendo da (0,0) itero una riga alla volta -> (x + F, y)
     // poi passo alla riga sopra (incremento y di F) e itero nuovamente
     for(unsigned int y = 0; y < compressedImage.height(); y += F){   // spostamento sulle righe dal basso verso l'alto
@@ -156,30 +148,65 @@ void MainWindow::compress() {
         }
     }
 
-    // allocazione spazio per input a FFTW
+    // allocazione spazio per input e output a FFTW
     double* inputMatrix = (double*)fftw_malloc(F * F * sizeof(double));
+    double* DCT2outMatrix = (double*)fftw_malloc(F * F * sizeof(double));
+    double* inverseDCT2OutMatrix = (double*)fftw_malloc(F * F * sizeof(double));
 
+    fftw_plan dct2 = fftw_plan_r2r_2d(F, F, inputMatrix, DCT2outMatrix, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+    fftw_plan idct2 = fftw_plan_r2r_2d(F, F, DCT2outMatrix, inverseDCT2OutMatrix, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
+
+    // TODO: correzione. Ci sono problemi di coordinate out of range
+    // TODO: spostare altri pezzi dell'algoritmo in funzioni apposite
     // per ogni blocco F×F:
     for(const QImage &block : blocks){
 
-        //memset(inputMatrix, 0, F * F * sizeof(double)); // resetto il contenuto dello spazio di memoria (secondo me è inutile)
+        memset(inputMatrix, 0, F * F * sizeof(double)); // resetto il contenuto dello spazio di memoria (secondo me è inutile)
 
         extractPixels(block, F, inputMatrix);   // 1. estraggo i pixel in una matrice
-        // 2. applicare DCT2 (FFTW)
-        // 3. azzerare frequenze con k+l >= d
-        // 4. applicare IDCT2
+        // 2. applicazione di DCT2
+        fftw_execute(dct2);
+        // 3. frequenze con k+l >= d vengono azzerate
+        for(unsigned int k = 0; k < F; ++k){
+            for(unsigned int l = 0; l < F; ++l){
+                if(k + l >= d){
+                    DCT2outMatrix[k * F + l] = 0.0;
+                }
+            }
+        }
+
+        // 4. applicazione di IDCT2
+        fftw_execute(idct2);
+
         // 5. round + clamp [0,255]
+        for(unsigned int i = 0; i < F; ++i){
+            for(unsigned int j = 0; j < F; ++j){
+                inverseDCT2OutMatrix[i * F + j] = round(inverseDCT2OutMatrix[i * F + j]); // arrotondamento del coefficiente
+                inverseDCT2OutMatrix[i * F + j] = std::max(0.0, inverseDCT2OutMatrix[i * F + j]);   // valori negativi vengono sovrascritti a 0
+                inverseDCT2OutMatrix[i * F + j] = std::min(inverseDCT2OutMatrix[i * F + j], 255.0); // valori più grandi di 255 vengono sostituiti da 255
+            }
+        }
+        
         // 6. riscrivere i pixel nel blocco
+        QImage reconstructed_block(F, F, QImage::Format_Grayscale8);
+        for (int y = 0; y < originalImage.height(); y += F) {
+            for (int x = 0; x < originalImage.width(); x += F) {
+                int idx = y * F + x;
+                uchar pixel_value = static_cast<uchar>(inverseDCT2OutMatrix[idx]);
+                reconstructed_block.setPixel(x, y, pixel_value);
+            }
+        }
+        convertedBlocks.append(reconstructed_block);
     }
 
-    // ricomposizione immagine
+    // ricomposizione immagine finale
     //QImage recomposed(originalImage.width(), originalImage.height(), QImage::Format_RGB32);
     QPainter painter(&compressedImage);
 
     int blockIndex = 0;
-    for (int y = 0; y < originalImage.height(); y += F) {
-        for (int x = 0; x < originalImage.width(); x += F) {
-            if (blockIndex < blocks.size()) {
+    for (int y = 0; y < compressedImage.height(); y += F) {
+        for (int x = 0; x < compressedImage.width(); x += F) {
+            if (blockIndex < convertedBlocks.size()) {
                 painter.drawImage(x, y, blocks[blockIndex]);
                 blockIndex++;
             }
@@ -188,7 +215,7 @@ void MainWindow::compress() {
     painter.end();
 
     // aggiorna status
-    statusLabel->setText(QString("Compressione: F=%1, d=%2, %3x%4 blocchi (TODO: DCT)")
+    statusLabel->setText(QString("Compressione: F=%1, d=%2, %3x%4 blocchi (PRIMO TENTATIVO)")
                              .arg(F).arg(d).arg(blocksX).arg(blocksY));
     // update display imm
     displayImages();
@@ -211,5 +238,22 @@ void MainWindow::displayImages() {
         QPixmap comp = QPixmap::fromImage(compressedImage).scaled(
             compressedLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
         compressedLabel->setPixmap(comp);
+    }
+}
+
+
+/**
+ * @brief estrazione da un blocco quadrato di immagine dei pixel in una matrice
+ * @param block reference al blocco, non modificabile
+ * @param blockSize dimensione del blocco
+ * @param matrix puntatore alla matrice dove inserire i coefficienti estratti
+ */
+void MainWindow::extractPixels(const QImage& block, int blockSize, double* matrix){
+
+    for (int y = 0; y < block.height(); y++) {
+        const uchar* scanLine = block.constScanLine(y);
+        for (int x = 0; x < block.width(); x++) {
+            matrix[y * blockSize + x] = static_cast<double>(scanLine[x]);
+        }
     }
 }
