@@ -111,6 +111,18 @@ void MainWindow::loadImage() {
     displayImages();
 }
 
+
+void extractPixels(const QImage& block, int blockSize, double* matrix){
+
+    for (int y = 0; y < block.height(); y++) {
+        for (int x = 0; x < block.width(); x++) {
+            unsigned char pixel = block.pixelIndex(x, y);
+            matrix[y * blockSize + x] = (double)pixel;
+        }
+    }
+}
+
+
 // comprime immagine
 void MainWindow::compress() {
     // guardia presenza immagine
@@ -128,13 +140,52 @@ void MainWindow::compress() {
     // copia troncata su pixel avanzo da bX (a destra) e da bY (in basso)
     compressedImage = originalImage.copy(0, 0, blocksX * F, blocksY * F);
 
-    // TODO: per ogni blocco F×F:
-    // 1. estrarre i pixel in una matrice Eigen
-    // 2. applicare DCT2 (FFTW)
-    // 3. azzerare frequenze con k+l >= d
-    // 4. applicare IDCT2
-    // 5. round + clamp [0,255]
-    // 6. riscrivere i pixel nel blocco
+    // creazione array contenente i blocchi in cui l'immagine viene suddivisa
+    QVector<QImage> blocks(blocksX * blocksY);
+    // partendo da (0,0) itero una riga alla volta -> (x + F, y)
+    // poi passo alla riga sopra (incremento y di F) e itero nuovamente
+    for(unsigned int y = 0; y < compressedImage.height(); y += F){   // spostamento sulle righe dal basso verso l'alto
+
+        for(unsigned int x = 0; x < compressedImage.width(); x += F){   // spostamento dentro la riga da sx a dx
+            int blockWidth = qMin(F, compressedImage.width() - (int)x);
+            int blockHeight = qMin(F, compressedImage.height() - (int)y);
+        
+            QRect blockRect(x, y, blockWidth, blockWidth);  // ritaglio la forma del blocco
+            QImage block = compressedImage.copy(blockRect); // estraggo il blocco dall'immagine come copia
+            blocks.append(block);
+        }
+    }
+
+    // allocazione spazio per input a FFTW
+    double* inputMatrix = (double*)fftw_malloc(F * F * sizeof(double));
+
+    // per ogni blocco F×F:
+    for(const QImage &block : blocks){
+
+        //memset(inputMatrix, 0, F * F * sizeof(double)); // resetto il contenuto dello spazio di memoria (secondo me è inutile)
+
+        extractPixels(block, F, inputMatrix);   // 1. estraggo i pixel in una matrice
+        // 2. applicare DCT2 (FFTW)
+        // 3. azzerare frequenze con k+l >= d
+        // 4. applicare IDCT2
+        // 5. round + clamp [0,255]
+        // 6. riscrivere i pixel nel blocco
+    }
+
+    // ricomposizione immagine
+    //QImage recomposed(originalImage.width(), originalImage.height(), QImage::Format_RGB32);
+    QPainter painter(&compressedImage);
+
+    int blockIndex = 0;
+    for (int y = 0; y < originalImage.height(); y += F) {
+        for (int x = 0; x < originalImage.width(); x += F) {
+            if (blockIndex < blocks.size()) {
+                painter.drawImage(x, y, blocks[blockIndex]);
+                blockIndex++;
+            }
+        }
+    }
+    painter.end();
 
     // aggiorna status
     statusLabel->setText(QString("Compressione: F=%1, d=%2, %3x%4 blocchi (TODO: DCT)")

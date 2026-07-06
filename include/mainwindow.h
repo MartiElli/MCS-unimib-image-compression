@@ -7,6 +7,8 @@
 #include <QPushButton> // button x "CaricaBMP"/"Comprimi" --> clicked() --> slots
 #include <QImage>      // immagine come griglia di pixel in memoria --> rw su pixels
                        // x visualizzarla convertita in QPixmap e messa in QLabel
+#include <QPainter>
+#include <fftw3.h>
 
 class MainWindow : public QMainWindow {
     // macro x qualsiasi classe con slot/signals
@@ -26,6 +28,7 @@ private slots:
 private:
     void updateDRange();  // update 'd' quando cambio 'F' (0 ... 2F-2)
     void displayImages(); // ridisegna le immagini su schermo
+    void extractPixels(const QImage& block, int blockSize, double* matrix); // estrae i pixel di un blocco in una matrice
 
     QLabel *originalLabel;        // label con bmp originale
     QLabel *compressedLabel;      // label con bmp compresso
