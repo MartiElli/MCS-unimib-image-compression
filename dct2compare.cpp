@@ -137,8 +137,10 @@ void computationTest(){
 }
 
 
-// TODO: aggiungere test scalabilità per FFTW
-void FFTWScalabilityTest(){
+/**
+ * @brief test sulla scalabilità di DCT1 e DCT2 di FFTW
+ */
+void FFTWScalingTest(){
 
 
     // matrice 8x8 di test fornita dalla traccia di progetto
@@ -206,7 +208,7 @@ void FFTWScalabilityTest(){
 /**
  * @brief test sulla scalabilità di DCT1 e DCT2 custom
  */
-void customDCTScalabilityTest(){
+void customDCTScalingTest(){
 
     // matrice 8x8 di test fornita dalla traccia di progetto
     Eigen::MatrixXd matrix(8, 8);
