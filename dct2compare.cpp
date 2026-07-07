@@ -116,7 +116,9 @@ void generatePlot(const std::vector<Misura>& data) {
 }
 
 
-// test per verificare che viene effettivamente restituita da DCT2 una matrice modificata
+/**
+ * @brief test per verificare che viene effettivamente restituita da DCT2 una matrice modificata
+ */
 void computationTest(){
 
     Eigen::MatrixXd m(5, 5);
@@ -142,6 +144,7 @@ void computationTest(){
  */
 void FFTWScalingTest(){
 
+    std::cout << "Test sullo scaling delle implementazioni di DCT1 e DCT2 della libreria FFTW" << std::endl;
 
     // matrice 8x8 di test fornita dalla traccia di progetto
     Eigen::MatrixXd matrix(8, 8);
@@ -210,6 +213,8 @@ void FFTWScalingTest(){
  */
 void customDCTScalingTest(){
 
+    std::cout << "Test sullo scaling delle implementazioni custom di DCT1 e DCT2" << std::endl;
+
     // matrice 8x8 di test fornita dalla traccia di progetto
     Eigen::MatrixXd matrix(8, 8);
     matrix << 231,  32, 233, 161,  24,  71, 140, 245,
@@ -237,16 +242,15 @@ void customDCTScalingTest(){
 }
 
 
-int main(){
+/**
+ * @brief confronto tra implementazioni
+ */
+void implementationsComparison(){
 
-    //computationTest();
-
-    customDCTScalabilityTest();
-
-    /*
-    std::vector<Misura> results;
+    std::cout << "Confronto tra implementazioni custom e della libreria FFTW" << std::endl;
+    std::vector<Misura> results;    // vettore dove raccogliere dati di esecuzione
     
-    // Testa per N = 2, 4, 8, 16, 32, 64, 128, 256, 512 ...
+    // Testa per matrici di dimensione N = 2, 4, 8, 16, 32, 64, 128, 256, 512
     for (int N = 2; N <= 512; N *= 2) {
         // Crea una matrice N×N con dati random
         Eigen::MatrixXd mat(N, N); 
@@ -288,11 +292,22 @@ int main(){
         results.push_back({N, customDCT2_time, fftw_time});
         
         std::cout << "N=" << N << " | Implementazione custom: " << customDCT2_time << "ms | Implementazione FFTW: " 
-                  << fftw_time << "ms\n";   // ovviamente i tempi per FFTW non hanno senso perchè non sto ancora chiamando la libreria!
+                  << fftw_time << "ms\n";
     }
 
     generatePlot(results);
-    */
+}
+
+
+int main(){
+
+    //computationTest();
+
+    //customDCTScalingTest();
+
+    FFTWScalingTest();
+
+    implementationsComparison();
 
     return 0;
 }
