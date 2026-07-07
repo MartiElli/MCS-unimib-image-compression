@@ -5,6 +5,7 @@
 #include <cmath>
 #include <chrono>
 
+
 /**
  * @brief Tripla che raccoglie i tempi di esecuzione della DCT2 custom e quella di FFTW data in input una matrice NxN
  */
@@ -136,10 +137,78 @@ void computationTest(){
 }
 
 
+// TODO: aggiungere test scalabilità
+void DCTScalabilityTest(){
+
+    // matrice 8x8 di test fornita dalla traccia di progetto
+    Eigen::MatrixXd matrix(8, 8);
+    matrix << 231,  32, 233, 161,  24,  71, 140, 245,
+        247,  40, 248, 245, 124, 204,  36, 107,
+        234, 202, 245, 167,   9, 217, 239, 173,
+        193, 190, 100, 167,  43, 180,   8,  70,
+         11,  24, 210, 177,  81, 243,   8, 112,
+         97, 195, 203,  47, 125, 114, 165, 181,
+        193,  70, 174, 167,  41,  30, 127, 245,
+         87, 149,  57, 192,  65, 129, 178, 228;
+
+    std::cout << "Matrice 8x8:" << std::endl << matrix << std::endl;
+    std::cout << "-----------------" << std::endl;
+
+    double *in = fftw_alloc_real(8 * 8);
+    double *out = fftw_alloc_real(8 * 8);
+
+    
+    // Transpose into FFTW input array
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            in[i * 8 + j] = matrix(i,j);
+        }
+    }
+
+    //Eigen::Map<Eigen::MatrixXd>(in, 8, 8) = matrix; // copia contenuto di matrix nel puntatore da dare in input alla trasformata
+
+    fftw_plan dtc2_test = fftw_plan_r2r_2d(8, 8, in, out, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+
+    fftw_execute(dtc2_test);
+
+    double scale = 0.5 * 0.5;
+    for(int i = 0; i < 8*8; i++) {
+        out[i] *= scale;
+    }
+
+    Eigen::MatrixXd result = Eigen::Map<Eigen::Matrix<double,
+        Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(out, 8, 8);    // copia ouptut in una matrice definita con Eigen
+
+    fftw_destroy_plan(dtc2_test);
+    fftw_free(in);
+    fftw_free(out);
+
+    std::cout << "Matrice 8x8 trasformata:" << std::endl << result << std::endl;
+    std::cout << "-----------------" << std::endl;
+
+    Eigen::VectorXd ratios(8 * 8);
+
+    unsigned int index = 0;
+    for(unsigned int i = 0; i < 8; ++i){
+        for(unsigned int j = 0; j < 8; ++j){
+
+            ratios(index) = matrix(i,j) / result(i,j);
+            index++;
+        }
+    }
+
+    std::cout << "Rapporti: " << ratios << std::endl;
+    
+}
+
+
 int main(){
 
     //computationTest();
 
+    DCTScalabilityTest();
+
+    /*
     std::vector<Misura> results;
     
     // Testa per N = 2, 4, 8, 16, 32, 64, 128, 256, 512 ...
@@ -188,8 +257,7 @@ int main(){
     }
 
     generatePlot(results);
+    */
 
     return 0;
 }
-
-// TODO: aggiungere test scalabilità
