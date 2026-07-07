@@ -7,6 +7,7 @@
 #include <fftw3.h>  // libreria per DCT2 e IDCT2
 #include <algorithm>    // funzioni min e max tra due numeri
 
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Compressione DCT");                              // titolo MainWindow
     resize(1200, 700);                                          // dimensione MainWindow
@@ -123,6 +124,9 @@ void MainWindow::compress() {
     int d = dSpinBox->value();      // legge d
     int w = originalImage.width();  // legge larghezza imm
     int h = originalImage.height(); // legge altezza imm
+
+    const double norm = 4.0 * F * F;    // costante per scalabilità DCT2
+
     // calcolo # blocchi FxF ci stanno
     // divisione intera scarta pixel avanzati
     // --> nested for x scorrere blocchi su bX e bY
@@ -132,8 +136,8 @@ void MainWindow::compress() {
     compressedImage = originalImage.copy(0, 0, blocksX * F, blocksY * F);
 
     // creazione array contenente i blocchi in cui l'immagine viene suddivisa
-    QVector<QImage> blocks(blocksX * blocksY);
-    QVector<QImage> convertedBlocks(blocksX * blocksY);
+    QVector<QImage> blocks;
+    QVector<QImage> convertedBlocks;
     // partendo da (0,0) itero su una riga -> (x + F, y)
     // poi passo alla riga sopra (incremento y di F) e itero nuovamente
     for(unsigned int y = 0; y < compressedImage.height(); y += F){   // spostamento sulle righe dal basso verso l'alto
@@ -166,6 +170,7 @@ void MainWindow::compress() {
         extractPixels(block, F, inputMatrix);   // 1. estraggo i pixel in una matrice
         // 2. applicazione di DCT2
         fftw_execute(dct2);
+
         // 3. frequenze con k+l >= d vengono azzerate
         for(unsigned int k = 0; k < F; ++k){
             for(unsigned int l = 0; l < F; ++l){
@@ -181,6 +186,7 @@ void MainWindow::compress() {
         // 5. round + clamp [0,255]
         for(unsigned int i = 0; i < F; ++i){
             for(unsigned int j = 0; j < F; ++j){
+                inverseDCT2OutMatrix[i * F + j] /= norm;   // sistemo scala
                 inverseDCT2OutMatrix[i * F + j] = round(inverseDCT2OutMatrix[i * F + j]); // arrotondamento del coefficiente
                 inverseDCT2OutMatrix[i * F + j] = std::max(0.0, inverseDCT2OutMatrix[i * F + j]);   // valori negativi vengono sovrascritti a 0
                 inverseDCT2OutMatrix[i * F + j] = std::min(inverseDCT2OutMatrix[i * F + j], 255.0); // valori più grandi di 255 vengono sostituiti da 255
