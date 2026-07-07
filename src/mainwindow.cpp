@@ -205,6 +205,13 @@ void MainWindow::compress() {
         convertedBlocks.append(reconstructed_block);
     }
 
+    // deallocazione matrici e trasformate FFTW per liberare memoria
+    fftw_destroy_plan(dct2);
+    fftw_destroy_plan(idct2);
+    fftw_free(inputMatrix);
+    fftw_free(DCT2outMatrix);
+    fftw_free(inverseDCT2OutMatrix);
+
     // ricomposizione immagine finale
     //QImage recomposed(originalImage.width(), originalImage.height(), QImage::Format_RGB32);
     QPainter painter(&compressedImage);
