@@ -134,7 +134,7 @@ void MainWindow::compress() {
     // creazione array contenente i blocchi in cui l'immagine viene suddivisa
     QVector<QImage> blocks(blocksX * blocksY);
     QVector<QImage> convertedBlocks(blocksX * blocksY);
-    // partendo da (0,0) itero una riga alla volta -> (x + F, y)
+    // partendo da (0,0) itero su una riga -> (x + F, y)
     // poi passo alla riga sopra (incremento y di F) e itero nuovamente
     for(unsigned int y = 0; y < compressedImage.height(); y += F){   // spostamento sulle righe dal basso verso l'alto
 
@@ -161,7 +161,7 @@ void MainWindow::compress() {
     // per ogni blocco F×F:
     for(const QImage &block : blocks){
 
-        memset(inputMatrix, 0, F * F * sizeof(double)); // resetto il contenuto dello spazio di memoria (secondo me è inutile)
+        //memset(inputMatrix, 0, F * F * sizeof(double)); // resetto il contenuto dello spazio di memoria (secondo me è inutile)
 
         extractPixels(block, F, inputMatrix);   // 1. estraggo i pixel in una matrice
         // 2. applicazione di DCT2
@@ -189,8 +189,8 @@ void MainWindow::compress() {
         
         // 6. riscrivere i pixel nel blocco
         QImage reconstructed_block(F, F, QImage::Format_Grayscale8);
-        for (int y = 0; y < originalImage.height(); y += F) {
-            for (int x = 0; x < originalImage.width(); x += F) {
+        for (int y = 0; y < F; ++y) {
+            for (int x = 0; x < F; ++x) {
                 int idx = y * F + x;
                 uchar pixel_value = static_cast<uchar>(inverseDCT2OutMatrix[idx]);
                 reconstructed_block.setPixel(x, y, pixel_value);
@@ -207,7 +207,7 @@ void MainWindow::compress() {
     for (int y = 0; y < compressedImage.height(); y += F) {
         for (int x = 0; x < compressedImage.width(); x += F) {
             if (blockIndex < convertedBlocks.size()) {
-                painter.drawImage(x, y, blocks[blockIndex]);
+                painter.drawImage(x, y, convertedBlocks[blockIndex]);
                 blockIndex++;
             }
         }
