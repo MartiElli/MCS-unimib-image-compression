@@ -200,7 +200,9 @@ void MainWindow::compress() {
         for (int y = 0; y < F; ++y) {
             for (int x = 0; x < F; ++x) {
                 int idx = y * F + x;
+                // cast a uchar x salvare il pixel nella QImage
                 uchar pixel_value = static_cast<uchar>(inverseDCT2OutMatrix[idx]);
+                // scrivo pixel nella riga y e colonna x del blocco ricostruito
                 reconstructed_block.scanLine(y)[x] = pixel_value;
             }
         }
