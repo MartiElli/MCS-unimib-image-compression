@@ -201,7 +201,7 @@ void MainWindow::compress() {
             for (int x = 0; x < F; ++x) {
                 int idx = y * F + x;
                 uchar pixel_value = static_cast<uchar>(inverseDCT2OutMatrix[idx]);
-                reconstructed_block.setPixel(x, y, pixel_value);
+                reconstructed_block.scanLine(y)[x] = pixel_value;
             }
         }
         convertedBlocks.append(reconstructed_block);
@@ -264,7 +264,7 @@ void MainWindow::displayImages() {
 
 
 /**
- * @brief estrazione da un blocco quadrato di immagine dei pixel in una matrice
+ * @brief fill di una matrice con i pixel di un blocco quadrato di immagine
  * @param block reference al blocco, non modificabile
  * @param blockSize dimensione del blocco
  * @param matrix puntatore alla matrice dove inserire i coefficienti estratti
@@ -272,9 +272,12 @@ void MainWindow::displayImages() {
 void MainWindow::extractPixels(const QImage& block, int blockSize, double* matrix){
 
     for (int y = 0; y < block.height(); y++) {
+        // address 1° byte della riga y-esima
+        // == valore di grigio del pixel, senza conversione
         const uchar* scanLine = block.constScanLine(y);
-        for (int x = 0; x < block.width(); x++) {
-            matrix[y * blockSize + x] = static_cast<double>(scanLine[x]);
+        for (int i = 0; i < block.width(); i++) {
+            // double caast, bypass api QImage, read raw memory
+            matrix[y * blockSize + i] = static_cast<double>(scanLine[i]);
         }
     }
 }
