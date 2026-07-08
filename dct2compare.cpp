@@ -171,14 +171,6 @@ void FFTWScalingTest(){
     double *in = fftw_alloc_real(8 * 8);
     double *out = fftw_alloc_real(8 * 8);
 
-    /*
-    // Transpose into FFTW input array
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++) {
-            in[i * 8 + j] = matrix(i,j);
-        }
-    }*/
-
     fftw_plan dtc2_test = fftw_plan_r2r_2d(8, 8, in, out, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
 
     Eigen::Map<Eigen::Matrix<double,

@@ -162,8 +162,6 @@ void MainWindow::compress() {
     fftw_plan dct2 = fftw_plan_r2r_2d(F, F, inputMatrix, DCT2outMatrix, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
     fftw_plan idct2 = fftw_plan_r2r_2d(F, F, DCT2outMatrix, inverseDCT2OutMatrix, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
 
-    // TODO: correzione. Ci sono problemi di coordinate out of range
-    // TODO: spostare altri pezzi dell'algoritmo in funzioni apposite
     // per ogni blocco F×F:
     for(const QImage &block : blocks){
 
