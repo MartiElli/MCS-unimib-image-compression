@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <Eigen/Core>
 #include <fftw3.h>
 #include <cmath>
@@ -89,7 +90,9 @@ Eigen::MatrixXd DCT2(Eigen::MatrixXd& f){
  * @param data collezione di dati da "plottare"
  */
 void generatePlot(const std::vector<Misura>& data) {
-    
+
+    std::filesystem::create_directories("dati"); // crea la cartella se non esiste, altrimenti ofstream fallisce silenziosamente
+
     std::ofstream data_file("dati/risultati_dct2.txt");
     for (const auto& m : data) {
         data_file << m.input_size << " " << m.customDCT2_time << " " << m.fftwDCT2_time << "\n";
@@ -111,8 +114,12 @@ void generatePlot(const std::vector<Misura>& data) {
     script << "     'dati/risultati_dct2.txt' using 1:3 title 'FFTW' pt 5\n";
     script.close();
 
-    system("gnuplot dati/grafico_dct2.gp");
-    std::cout << "Grafico salvato come 'confronto_dct2.png' nella cartella 'dati'\n";
+    int ret = system("gnuplot dati/grafico_dct2.gp");
+    if (ret != 0) {
+        std::cerr << "Errore: gnuplot ha restituito codice " << ret << ", grafico non generato\n";
+    } else {
+        std::cout << "Grafico salvato come 'confronto_dct2.png' nella cartella 'dati'\n";
+    }
 }
 
 
@@ -172,16 +179,27 @@ void FFTWScalingTest(){
         }
     }*/
 
-    Eigen::Map<Eigen::Matrix<double,
-        Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(in, 8, 8) = matrix; // copia contenuto di matrix nel puntatore da dare in input alla trasformata
-
     fftw_plan dtc2_test = fftw_plan_r2r_2d(8, 8, in, out, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+
+    Eigen::Map<Eigen::Matrix<double,
+        Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(in, 8, 8) = matrix; // copia contenuto di matrix nel puntatore da dare in input alla trasformata (DOPO la creazione del piano, altrimenti FFTW_MEASURE la sovrascrive)
 
     fftw_execute(dtc2_test);
 
-    double scale = 0.5 * 0.5;
-    for(int i = 0; i < 8*8; i++) {
-        out[i] *= scale;
+    // scaling ortonormale posizionale: alpha_0 = 1/sqrt(N), alpha_k = sqrt(2/N) per k>0
+    // (stessa convenzione usata nella DCT1/DCT2 custom). Il forward REDFT10 di FFTW
+    // applica un fattore "2" per ogni dimensione (quindi "4" in 2D, da cui il vecchio
+    // 0.25), e in piu' la convenzione ortonormale richiede alpha_k per riga/colonna:
+    // il fattore corretto e' il prodotto di entrambi, non uno dei due da solo.
+    double alpha[8];
+    for (int i = 0; i < 8; i++) {
+        alpha[i] = (i == 0) ? 1.0 / std::sqrt(8.0) : std::sqrt(2.0 / 8.0);
+    }
+    double baseScale = 0.25; // rimuove il fattore "4" del forward REDFT10 2D di FFTW
+    for (int k = 0; k < 8; k++) {
+        for (int l = 0; l < 8; l++) {
+            out[k * 8 + l] *= baseScale * alpha[k] * alpha[l];
+        }
     }
 
     Eigen::MatrixXd transformed = Eigen::Map<Eigen::Matrix<double,
@@ -191,20 +209,24 @@ void FFTWScalingTest(){
     fftw_free(in);
     fftw_free(out);
 
-    std::cout << "Matrice 8x8 trasformata con DCT2 di FFTW:" << std::endl << transformed << std::endl;
+    std::cout << "Matrice 8x8 trasformata con DCT2 di FFTW (scalata):" << std::endl << transformed << std::endl;
 
-    Eigen::VectorXd ratios(8 * 8);
+    // matrice attesa dalla traccia di progetto, per confronto diretto
+    Eigen::MatrixXd expected(8, 8);
+    expected << 1.11e+03,  4.40e+01,  7.59e+01, -1.38e+02,  3.50e+00,  1.22e+02,  1.95e+02, -1.01e+02,
+                7.71e+01,  1.14e+02, -2.18e+01,  4.13e+01,  8.77e+00,  9.90e+01,  1.38e+02,  1.09e+01,
+                4.48e+01, -6.27e+01,  1.11e+02, -7.63e+01,  1.24e+02,  9.55e+01, -3.98e+01,  5.85e+01,
+               -6.99e+01, -4.02e+01, -2.34e+01, -7.67e+01,  2.66e+01, -3.68e+01,  6.61e+01,  1.25e+02,
+               -1.09e+02, -4.33e+01, -5.55e+01,  8.17e+00,  3.02e+01, -2.86e+01,  2.44e+00, -9.41e+01,
+               -5.38e+00,  5.66e+01,  1.73e+02, -3.54e+01,  3.23e+01,  3.34e+01, -5.81e+01,  1.90e+01,
+                7.88e+01, -6.45e+01,  1.18e+02, -1.50e+01, -1.37e+02, -3.06e+01, -1.05e+02,  3.98e+01,
+                1.97e+01, -7.81e+01,  9.72e-01, -7.23e+01, -2.15e+01,  8.13e+01,  6.37e+01,  5.90e+00;
 
-    unsigned int index = 0;
-    for(unsigned int i = 0; i < 8; ++i){
-        for(unsigned int j = 0; j < 8; ++j){
+    Eigen::MatrixXd ratios = transformed.array() / expected.array();
 
-            ratios(index) = matrix(i,j) / transformed(i,j);
-            index++;
-        }
-    }
-
-    std::cout << "Rapporti: " << ratios << std::endl;
+    std::cout << "Matrice attesa (dalla traccia del progetto):" << std::endl << expected << std::endl;
+    std::cout << "Rapporti (calcolato/atteso, atteso ~1 ovunque se lo scaling e' corretto): "
+               << std::endl << ratios << std::endl;
 }
 
 
