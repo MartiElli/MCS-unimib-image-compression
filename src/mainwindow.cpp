@@ -263,12 +263,6 @@ void MainWindow::displayImages() {
 }
 
 
-/**
- * @brief fill di una matrice con i pixel di un blocco quadrato di immagine
- * @param block reference al blocco, non modificabile
- * @param blockSize dimensione del blocco
- * @param matrix puntatore alla matrice dove inserire i coefficienti estratti
- */
 void MainWindow::extractPixels(const QImage& block, int blockSize, double* matrix){
 
     for (int y = 0; y < block.height(); y++) {

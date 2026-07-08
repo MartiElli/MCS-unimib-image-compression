@@ -6,6 +6,12 @@
 #include <cmath>
 #include <chrono>
 
+/**
+ * @file dct2compare.cpp
+ * @brief Parte 1 del progetto: 
+ * confronto tra DCT2 custom (Eigen, scaling ortonormale) e DCT2 FFTW 
+ * (fast, FFTW_REDFT10/REDFT01), per correttezza e tempo di esecuzione
+ */
 
 /**
  * @brief Tripla che raccoglie i tempi di esecuzione della DCT2 custom e quella di FFTW data in input una matrice NxN
