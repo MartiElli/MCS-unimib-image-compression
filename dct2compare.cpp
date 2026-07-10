@@ -1,10 +1,17 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <Eigen/Core>
 #include <fftw3.h>
 #include <cmath>
 #include <chrono>
 
+/**
+ * @file dct2compare.cpp
+ * @brief Parte 1 del progetto: 
+ * confronto tra DCT2 custom (Eigen, scaling ortonormale) e DCT2 FFTW 
+ * (fast, FFTW_REDFT10/REDFT01), per correttezza e tempo di esecuzione
+ */
 
 /**
  * @brief Matrice fornita dalla traccia di progetto per testare scaling di DCT2
@@ -118,7 +125,9 @@ Eigen::MatrixXd DCT2(const Eigen::MatrixXd& f){
  * @param data collezione di dati da "plottare"
  */
 void generatePlot(const std::vector<Misura>& data) {
-    
+
+    std::filesystem::create_directories("dati"); // crea la cartella se non esiste, altrimenti ofstream fallisce silenziosamente
+
     std::ofstream data_file("dati/risultati_dct2.txt");
     for (const auto& m : data) {
         data_file << m.input_size << " " << m.customDCT2_time << " " << m.fftwDCT2_time << " " << m.fftwDCT2_time1 << "\n";
@@ -141,8 +150,12 @@ void generatePlot(const std::vector<Misura>& data) {
     script << "     'dati/risultati_dct2.txt' using 1:4 title 'FFTW ESTIMATE' pt 3\n";
     script.close();
 
-    system("gnuplot dati/grafico_dct2.gp");
-    std::cout << "Grafico salvato come 'confronto_dct2.png' nella cartella 'dati'\n";
+    int ret = system("gnuplot dati/grafico_dct2.gp");
+    if (ret != 0) {
+        std::cerr << "Errore: gnuplot ha restituito codice " << ret << ", grafico non generato\n";
+    } else {
+        std::cout << "Grafico salvato come 'confronto_dct2.png' nella cartella 'dati'\n";
+    }
 }
 
 
@@ -189,6 +202,22 @@ void FFTW_ESTIMATEScalingTest(){
 
     fftw_execute(dtc2_test);
 
+    // scaling ortonormale posizionale: alpha_0 = 1/sqrt(N), alpha_k = sqrt(2/N) per k>0
+    // (stessa convenzione usata nella DCT1/DCT2 custom). Il forward REDFT10 di FFTW
+    // applica un fattore "2" per ogni dimensione (quindi "4" in 2D, da cui il vecchio
+    // 0.25), e in piu' la convenzione ortonormale richiede alpha_k per riga/colonna:
+    // il fattore corretto e' il prodotto di entrambi, non uno dei due da solo.
+    double alpha[8];
+    for (int i = 0; i < 8; i++) {
+        alpha[i] = (i == 0) ? 1.0 / std::sqrt(8.0) : std::sqrt(2.0 / 8.0);
+    }
+    double baseScale = 0.25; // rimuove il fattore "4" del forward REDFT10 2D di FFTW
+    for (int k = 0; k < 8; k++) {
+        for (int l = 0; l < 8; l++) {
+            out[k * 8 + l] *= baseScale * alpha[k] * alpha[l];
+        }
+    }
+
     Eigen::MatrixXd transformed = Eigen::Map<Eigen::Matrix<double,
         Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(out, 8, 8);    // copia ouptut in una matrice definita con Eigen
 
@@ -198,18 +227,14 @@ void FFTW_ESTIMATEScalingTest(){
 
     std::cout << "Matrice 8x8 trasformata con DCT2 di FFTW:" << std::endl << transformed << std::endl;
 
-    Eigen::VectorXd ratios(8 * 8);
+    std::cout << "Matrice attesa (dalla traccia del progetto):" << std::endl << expectedMatrix << std::endl;
+    std::cout << "Rapporti (calcolato/atteso, atteso ~1 ovunque se lo scaling e' corretto): " << std::endl;
 
-    unsigned int index = 0;
-    for(unsigned int i = 0; i < 8; ++i){
-        for(unsigned int j = 0; j < 8; ++j){
+    Eigen::MatrixXd ratios = transformed.array() / expectedMatrix.array();
 
-            ratios(index) = transformed(i,j) / expectedMatrix(i,j);
-            index++;
-        }
-    }
+    std::cout << "Rapporti (calcolato/atteso, atteso ~1 ovunque se lo scaling e' corretto): "
+               << std::endl << ratios << std::endl;
 
-    std::cout << "Rapporti: " << ratios << std::endl;
 }
 
 
@@ -231,7 +256,26 @@ void FFTW_MEASUREScalingTest(){
 
     fftw_plan dtc2_test = fftw_plan_r2r_2d(8, 8, in, out, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
 
+    Eigen::Map<Eigen::Matrix<double,
+        Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(in, 8, 8) = scalingCheck; // copia contenuto della matrice nel puntatore da dare in input alla trasformata (DOPO la creazione del piano, altrimenti FFTW_MEASURE la sovrascrive)
+
     fftw_execute(dtc2_test);
+
+    // scaling ortonormale posizionale: alpha_0 = 1/sqrt(N), alpha_k = sqrt(2/N) per k>0
+    // (stessa convenzione usata nella DCT1/DCT2 custom). Il forward REDFT10 di FFTW
+    // applica un fattore "2" per ogni dimensione (quindi "4" in 2D, da cui il vecchio
+    // 0.25), e in piu' la convenzione ortonormale richiede alpha_k per riga/colonna:
+    // il fattore corretto e' il prodotto di entrambi, non uno dei due da solo.
+    double alpha[8];
+    for (int i = 0; i < 8; i++) {
+        alpha[i] = (i == 0) ? 1.0 / std::sqrt(8.0) : std::sqrt(2.0 / 8.0);
+    }
+    double baseScale = 0.25; // rimuove il fattore "4" del forward REDFT10 2D di FFTW
+    for (int k = 0; k < 8; k++) {
+        for (int l = 0; l < 8; l++) {
+            out[k * 8 + l] *= baseScale * alpha[k] * alpha[l];
+        }
+    }
 
     Eigen::MatrixXd transformed = Eigen::Map<Eigen::Matrix<double,
         Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(out, 8, 8);    // copia ouptut in una matrice definita con Eigen
@@ -240,20 +284,16 @@ void FFTW_MEASUREScalingTest(){
     fftw_free(in);
     fftw_free(out);
 
-    std::cout << "Matrice 8x8 trasformata con DCT2 di FFTW:" << std::endl << transformed << std::endl;
+    std::cout << "Matrice 8x8 trasformata con DCT2 di FFTW (scalata):" << std::endl << transformed << std::endl;
 
-    Eigen::VectorXd ratios(8 * 8);
 
-    unsigned int index = 0;
-    for(unsigned int i = 0; i < 8; ++i){
-        for(unsigned int j = 0; j < 8; ++j){
+    std::cout << "Matrice attesa (dalla traccia del progetto):" << std::endl << expectedMatrix << std::endl;
+    std::cout << "Rapporti (calcolato/atteso, atteso ~1 ovunque se lo scaling e' corretto): " << std::endl;
 
-            ratios(index) = transformed(i,j) / expectedMatrix(i,j);
-            index++;
-        }
-    }
+    Eigen::MatrixXd ratios = transformed.array() / expectedMatrix.array();
 
-    std::cout << "Rapporti: " << ratios << std::endl;
+    std::cout << "Rapporti (calcolato/atteso, atteso ~1 ovunque se lo scaling e' corretto): "
+               << std::endl << ratios << std::endl;
 }
 
 

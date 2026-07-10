@@ -73,3 +73,7 @@ Testing/
 
 # bmps folder
 immagini/
+
+# output generato a runtime (grafici DCT2, immagini compresse)
+dati/
+compressed/
